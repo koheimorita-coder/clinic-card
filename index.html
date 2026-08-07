@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>デジタル診察券</title>
+    <!-- LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <!-- QRコード生成ライブラリ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f5f6f6; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 20px; }
+        input[type="text"] { padding: 10px; font-size: 16px; width: 80%; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        button { background-color: #06C755; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; }
+        #qr-container { display: flex; justify-content: center; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h2>デジタル診察券</h2>
+    <div id="loading">LINEと連携中...</div>
+
+    <!-- 診察券番号 入力フォーム（初回のみ表示） -->
+    <div id="register-section" class="card" style="display: none;">
+        <p>こんにちは、<span id="user-name"></span>さん</p>
+        <p>お手元の診察券番号を入力してください。</p>
+        <input type="text" id="patient-id" placeholder="例: 123456" pattern="\d*">
+        <br>
+        <button onclick="registerCard()">連携する</button>
+    </div>
+
+    <!-- 診察券（QRコード）表示エリア -->
+    <div id="card-section" class="card" style="display: none;">
+        <h3>あなたの診察券</h3>
+        <p>受付のリーダーにかざしてください。</p>
+        <p>診察券番号: <strong><span id="display-patient-id"></span></strong></p>
+        <div id="qr-container"></div>
+        <br>
+        <button onclick="resetData()" style="background-color: #ccc;">連携解除（テスト用）</button>
+    </div>
+
+    <script>
+        // ※ 実際の開発ではLINE Developersで取得したLIFF IDを入力します
+        const LIFF_ID = "あなたの_LIFF_IDをここに入れる"; 
+        let lineUserId = "";
+
+        // LIFFの初期化
+        async function initializeLiff() {
+            try {
+                // await liff.init({ liffId: LIFF_ID }); // 本番環境ではこちらを使用
+                
+                // テスト用にダミーデータを使用（本番では消去）
+                lineUserId = "dummy_line_id_001";
+                const profile = { displayName: "テストユーザー" };
+                
+                document.getElementById('loading').style.display = 'none';
+                checkRegistration(profile.displayName);
+
+            } catch (err) {
+                console.error('LIFF Initialization failed', err);
+                document.getElementById('loading').innerText = "エラーが発生しました";
+            }
+        }
+
+        // 登録済みかどうかのチェック（本番ではここでサーバーにAPIリクエストを送る）
+        function checkRegistration(displayName) {
+            // ここでは簡易的にブラウザのLocalStorageで代用
+            const savedPatientId = localStorage.getItem('patient_id_' + lineUserId);
+
+            if (savedPatientId) {
+                // 登録済み：QRコードを表示
+                showQR(savedPatientId);
+            } else {
+                // 未登録：入力フォームを表示
+                document.getElementById('user-name').innerText = displayName;
+                document.getElementById('register-section').style.display = 'block';
+            }
+        }
+
+        // 診察券番号の連携処理
+        function registerCard() {
+            const patientId = document.getElementById('patient-id').value;
+            if (!patientId) {
+                alert("診察券番号を入力してください");
+                return;
+            }
+
+            // 本番ではここでサーバーに保存（POSTリクエスト: LINE ID ⇄ 診察券番号）
+            localStorage.setItem('patient_id_' + lineUserId, patientId);
+
+            document.getElementById('register-section').style.display = 'none';
+            showQR(patientId);
+        }
+
+        // QRコードの表示処理
+        function showQR(patientId) {
+            document.getElementById('card-section').style.display = 'block';
+            document.getElementById('display-patient-id').innerText = patientId;
+
+            // QRコードを生成
+            document.getElementById('qr-container').innerHTML = ""; // 初期化
+            new QRCode(document.getElementById("qr-container"), {
+                text: patientId, // QRコード化するデータ
+                width: 150,
+                height: 150,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        // テスト用のリセット機能
+        function resetData() {
+            localStorage.removeItem('patient_id_' + lineUserId);
+            location.reload();
+        }
+
+        // ページ読み込み時に実行
+        window.onload = function() {
+            initializeLiff();
+        };
+    </script>
+</body>
+</html>
