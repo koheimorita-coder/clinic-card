@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>デジタル診察券</title>
+    <title>奥山整形外科 駒込本院 | デジタル診察券</title>
     <!-- LIFF SDK -->
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <!-- QRコード生成ライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f5f6f6; }
+        .clinic-name { font-size: 18px; color: #333; margin-bottom: 5px; }
+        h2 { margin-top: 0; color: #111; }
         .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 20px; }
         input[type="text"] { padding: 10px; font-size: 16px; width: 80%; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; }
         button { background-color: #06C755; color: white; border: none; padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; }
@@ -18,13 +20,14 @@
 </head>
 <body>
 
+    <div class="clinic-name">奥山整形外科 駒込本院</div>
     <h2>デジタル診察券</h2>
     <div id="loading">LINEと連携中...</div>
 
     <!-- 診察券番号 入力フォーム（初回のみ表示） -->
     <div id="register-section" class="card" style="display: none;">
-        <p>こんにちは、<span id="user-name"></span>さん</p>
-        <p>お手元の診察券番号を入力してください。</p>
+        <p><strong><span id="user-name"></span> 様</strong></p>
+        <p>奥山整形外科 駒込本院をご利用いただきありがとうございます。<br>お手元の診察券番号をご入力ください。</p>
         <input type="text" id="patient-id" placeholder="例: 123456" pattern="\d*">
         <br>
         <button onclick="registerCard()">連携する</button>
@@ -33,11 +36,11 @@
     <!-- 診察券（QRコード）表示エリア -->
     <div id="card-section" class="card" style="display: none;">
         <h3>あなたの診察券</h3>
-        <p>受付のリーダーにかざしてください。</p>
+        <p>受付機・自動精算機にかざしてください</p>
         <p>診察券番号: <strong><span id="display-patient-id"></span></strong></p>
         <div id="qr-container"></div>
         <br>
-        <button onclick="resetData()" style="background-color: #ccc;">連携解除（テスト用）</button>
+        <button onclick="resetData()" style="background-color: #ccc; margin-top: 15px;">連携解除（テスト用）</button>
     </div>
 
     <script>
@@ -48,24 +51,34 @@
         // LIFFの初期化
         async function initializeLiff() {
             try {
-                // await liff.init({ liffId: LIFF_ID }); // 本番環境ではこちらを使用
+                // 1. LIFFを初期化
+                await liff.init({ liffId: LIFF_ID });
                 
-                // テスト用にダミーデータを使用（本番では消去）
-                lineUserId = "dummy_line_id_001";
-                const profile = { displayName: "テストユーザー" };
-                
-                document.getElementById('loading').style.display = 'none';
-                checkRegistration(profile.displayName);
+                // 2. ユーザーがLINEでログインしているか確認
+                if (liff.isLoggedIn()) {
+                    // 3. ユーザーのプロフィール情報を取得
+                    const profile = await liff.getProfile();
+                    
+                    lineUserId = profile.userId;          // LINEの内部ユーザーID
+                    const lineName = profile.displayName; // LINEに登録されている名前（LINE名）
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    // 取得したLINE名を渡して登録チェックへ進む
+                    checkRegistration(lineName);
+                } else {
+                    // 外部ブラウザなどで開いて未ログインの場合はログインを促す
+                    liff.login();
+                }
 
             } catch (err) {
                 console.error('LIFF Initialization failed', err);
-                document.getElementById('loading').innerText = "エラーが発生しました";
+                document.getElementById('loading').innerText = "LINEとの連携に失敗しました。";
             }
         }
 
-        // 登録済みかどうかのチェック（本番ではここでサーバーにAPIリクエストを送る）
+        // 登録済みかどうかのチェック
         function checkRegistration(displayName) {
-            // ここでは簡易的にブラウザのLocalStorageで代用
             const savedPatientId = localStorage.getItem('patient_id_' + lineUserId);
 
             if (savedPatientId) {
